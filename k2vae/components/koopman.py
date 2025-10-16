@@ -51,10 +51,10 @@ class KPLayer(nn.Module):
         U, _, Vh = torch.linalg.svd(K_init)  # stable initialization
         self.K_global = nn.Parameter(U @ Vh)
 
-    def forward(self, z, forecast_horizon: int):
+    def forward(self, z, forecast_len: int):
         # B: batch size, n: context length, E: state dim, m: forecast len
         B, n, E = z.shape
-        m = forecast_horizon
+        m = forecast_len
         z_back, z_fore = z[:, :-1, :], z[:, 1:, :]
         # solve Z_back @ K_loc = Z_fore with least-squares
         K_local = torch.linalg.lstsq(z_back, z_fore).solution
