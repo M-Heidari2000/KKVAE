@@ -1,8 +1,7 @@
-from torch.distributions import MultivariateNormal
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions import MultivariateNormal
 
 
 class KalmanFilter(nn.Module):
@@ -63,9 +62,9 @@ class KalmanFilter(nn.Module):
         return fixed_tensor
 
 
-    def forward(self, x, U_t, Y_t):
-
-        batch_size, seq_len, _ = U_t.shape
+    def forward(self, x, u, y):
+        # x is the initial state mean
+        batch_size, seq_len, _ = u.shape
         # Initial covariance matrix
         P_t = torch.eye(self.state_dim, device=x.device).unsqueeze(0).repeat(batch_size, 1, 1)
 
@@ -74,7 +73,7 @@ class KalmanFilter(nn.Module):
 
         # Iterate over the sequence
         for t in range(seq_len):
-            x, P_t = self.one_step(x, U_t[:, t, :], Y_t[:, t, :], P_t)
+            x, P_t = self.one_step(x, u[:, t, :], y[:, t, :], P_t)
             P_t = 0.5 * (P_t + P_t.transpose(-2, -1))
             prediction.append(x)
             covariance.append(P_t)

@@ -6,6 +6,7 @@ from transformer.encdec import Encoder, EncoderLayer
 
 
 class Integrator(nn.Module):
+    
     def __init__(
         self,
         context_len: int,
