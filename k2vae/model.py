@@ -136,7 +136,7 @@ class K2VAE(nn.Module):
         # x reconstruction loss
         x_rec_loss = ((x_rec - x)**2).sum(dim=-1).mean()
         # y reconstruction loss, P(y|z, x) log likelihood
-        y_rec_loss = ((y_rec, y)**2).sum(dim=-1).mean()
+        y_rec_loss = ((y_rec - y)**2).sum(dim=-1).mean()
         # kl loss
         p_z_mean = torch.zeros_like(q_z.loc)
         B, N, S = q_z.loc.shape
