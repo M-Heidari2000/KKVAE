@@ -1,8 +1,8 @@
 import torch
 from einops import rearrange
 from torch import nn
-from transformer.attention import FullAttention, AttentionLayer
-from transformer.encdec import Encoder, EncoderLayer
+from .transformer.attention import FullAttention, AttentionLayer
+from .transformer.encdec import Encoder, EncoderLayer
 
 
 class Integrator(nn.Module):
@@ -25,7 +25,7 @@ class Integrator(nn.Module):
         self.forecast_len = forecast_len
 
         # Positional Embedding
-        self.pos_embed = nn.Embedding(self.context_len, d_model) 
+        self.pos_embed = nn.Embedding(context_len, d_model) 
 
         # Encoder
         self.encoder = Encoder(

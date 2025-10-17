@@ -42,8 +42,8 @@ class K2VAE(nn.Module):
     ):
         super().__init__()
 
-        self.state_context_len=obs_context_len // patch_size,
-        self.state_forecast_len=obs_forecast_len // patch_size,
+        self.state_context_len = obs_context_len // patch_size
+        self.state_forecast_len = obs_forecast_len // patch_size
 
         # scaler
         self.scaler = Scaler(
@@ -111,9 +111,9 @@ class K2VAE(nn.Module):
         assert y.shape[1] % self.patcher.patch_size == 0
 
         # normalize time series
-        x = self.scaler(x, mode="norm")
+        xn = self.scaler(x, mode="norm")
         # patching and linear embedding
-        xpp = self.patcher(x)
+        xpp = self.patcher(xn)
         # encoding
         xps = self.encoder(xpp)
         # koopman
@@ -122,14 +122,14 @@ class K2VAE(nn.Module):
         x_res = xps - x_c
         u = self.integrator(x_res)
         # kalman filtering, why the initial state mean is xps instead of x_c ??
-        z_dist = self.kalman_filter(x=xps[:, -1, :])
+        z_dist = self.kalman_filter(x=xps[:, -1, :], u=u, y=x_h)
         z = z_dist.mean
         zp = z + u
         q_z = MultivariateNormal(loc=zp, covariance_matrix=z_dist.covariance_matrix)
         z_sample = q_z.rsample()
         
-        x_rec = rearrange(self.decoder(x_c), "b n (p o) -> b (n p) o")
-        y_rec = rearrange(self.decoder(z_sample), "b n (p o) -> b (n p) o")
+        x_rec = rearrange(self.decoder(x_c), "b n (p o) -> b (n p) o", p=self.patcher.patch_size)
+        y_rec = rearrange(self.decoder(z_sample), "b n (p o) -> b (n p) o", p=self.patcher.patch_size)
         x_rec = self.scaler(x_rec, mode="denorm")
         y_rec = self.scaler(y_rec, mode="denorm")
 
@@ -142,7 +142,7 @@ class K2VAE(nn.Module):
         B, N, S = q_z.loc.shape
         p_z_cov = torch.eye(S, device=q_z.loc.device).expand(B, N, -1, -1)
         p_z = MultivariateNormal(loc=p_z_mean, covariance_matrix=p_z_cov)
-        kl_loss = kl_divergence(q_z, p_z)
+        kl_loss = kl_divergence(q_z, p_z).mean()
 
         return Outputs(
             x_rec=x_res,

@@ -42,6 +42,9 @@ class MLP(nn.Module):
         layers += [nn.Linear(hidden_dim, output_dim)]
         self.layers = nn.Sequential(*layers)
 
+    def forward(self, x):
+        return self.layers(x)
+
 
 class KPLayer(nn.Module):
 
@@ -68,13 +71,14 @@ class KPLayer(nn.Module):
         x_rec = torch.empty_like(z, device=z.device)
         x_forecast = torch.empty((B, m, E), device=z.device)
         x_rec[:, 0, :] = z[:, 0, :]
+        dummy = z[:, 0, :]
 
         for i in range(1, n):
-            x_rec[:, i, :] = torch.einsum("bi,bij->bj", z[:, i-1, :], K)
+            dummy = torch.einsum("bi,bij->bj", dummy, K)
+            x_rec[:, i, :] = dummy
         
-        x_forecast[:, 0, :] = torch.einsum("bi,bij->bj", x_rec[:, -1, :], K)
-
-        for i in range(1, m):
-            x_forecast[:, i, :] = torch.einsum("bi,bij->bj", x_forecast[:, i-1, :], K)
+        for i in range(0, m):
+            dummy = torch.einsum("bi,bij->bj", dummy, K)
+            x_forecast[:, i, :] = dummy
 
         return x_rec, x_forecast

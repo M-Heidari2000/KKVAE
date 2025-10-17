@@ -34,16 +34,16 @@ class KalmanFilter(nn.Module):
 
 
     def dynamics_update(self, x_prev, P_prev, u):
-        x_pred = torch.einsum("bij,bj->bi", self.A, x_prev) + torch.einsum("bij,bj->bi", self.B, u)
-        P_pred = torch.einsum("bij,bjk,bkl->bil", self.A, P_prev, self.A.transpose(1, 2)) + self.Nx
+        x_pred = torch.einsum("ij,bj->bi", self.A, x_prev) + torch.einsum("ij,bj->bi", self.B, u)
+        P_pred = torch.einsum("ij,bjk,kl->bil", self.A, P_prev, self.A.transpose(-1, -2)) + self.Ns
         return x_pred, P_pred
 
     def measurement_update(self, x_pred, P_pred, y):
-        S = torch.einsum("bij,bjk,bkl->bil", self.C, P_pred, self.C.transpose(1, 2)) + self.Na
-        G = torch.einsum("bij,bjk,bkl->bil", P_pred, self.C.transpose(1, 2), torch.linalg.pinv(S))
-        innovation = y - torch.einsum("bij,bj->bi", self.C, x_pred)
+        S = torch.einsum("ij,bjk,kl->bil", self.C, P_pred, self.C.transpose(-1, -2)) + self.No
+        G = torch.einsum("bij,jk,bkl->bil", P_pred, self.C.transpose(-1, -2), torch.linalg.pinv(S))
+        innovation = y - torch.einsum("ij,bj->bi", self.C, x_pred)
         x_update = x_pred + torch.einsum("bij,bj->bi", G, innovation)
-        P_update = P_pred - torch.einsum("bij,bjk,bkl->bil", G, self.C, P_pred)
+        P_update = P_pred - torch.einsum("bij,jk,bkl->bil", G, self.C, P_pred)
         return x_update, P_update
 
 
@@ -66,14 +66,14 @@ class KalmanFilter(nn.Module):
         # x is the initial state mean
         batch_size, seq_len, _ = u.shape
         # Initial covariance matrix
-        P_t = torch.eye(self.state_dim, device=x.device).unsqueeze(0).repeat(batch_size, 1, 1)
+        P_t = torch.eye(self.state_dim, device=x.device).unsqueeze(0).expand(batch_size, -1, -1)
 
         prediction = []
         covariance = []
 
         # Iterate over the sequence
         for t in range(seq_len):
-            x, P_t = self.one_step(x, u[:, t, :], y[:, t, :], P_t)
+            x, P_t = self.one_step(x_prev=x, u=u[:, t, :], y=y[:, t, :], P_prev=P_t)
             P_t = 0.5 * (P_t + P_t.transpose(-2, -1))
             prediction.append(x)
             covariance.append(P_t)
