@@ -134,9 +134,9 @@ class K2VAE(nn.Module):
         y_rec = self.scaler(y_rec, mode="denorm")
 
         # x reconstruction loss
-        x_rec_loss = nn.MSELoss()(x_rec, x)
+        x_rec_loss = ((x_rec - x)**2).sum(dim=-1).mean()
         # y reconstruction loss, P(y|z, x) log likelihood
-        y_rec_loss = nn.MSELoss()(y_rec, y)
+        y_rec_loss = ((y_rec, y)**2).sum(dim=-1).mean()
         # kl loss
         p_z_mean = torch.zeros_like(q_z.loc)
         B, N, S = q_z.loc.shape
@@ -145,7 +145,7 @@ class K2VAE(nn.Module):
         kl_loss = kl_divergence(q_z, p_z).mean()
 
         return Outputs(
-            x_rec=x_res,
+            x_rec=x_rec,
             y_rec=y_rec,
             x_rec_loss=x_rec_loss,
             y_rec_loss=y_rec_loss,

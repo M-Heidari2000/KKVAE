@@ -29,7 +29,7 @@ class MLP(nn.Module):
         layers = [
             nn.Linear(self.input_dim, self.hidden_dim),
             self.activation,
-            nn.Dropout(self.dropout)
+            nn.Dropout(dropout)
         ]
 
         for _ in range(self.num_hidden_layers - 1):
