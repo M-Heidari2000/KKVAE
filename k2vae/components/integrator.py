@@ -24,6 +24,9 @@ class Integrator(nn.Module):
         self.context_len = context_len
         self.forecast_len = forecast_len
 
+        # Positional Embedding
+        self.pos_embed = nn.Embedding(self.context_len, d_model) 
+
         # Encoder
         self.encoder = Encoder(
             [
@@ -43,7 +46,7 @@ class Integrator(nn.Module):
                     dropout=dropout,
                     activation=activation,
                 )
-                for l in range(num_layers)
+                for _ in range(num_layers)
             ],
             norm_layer=torch.nn.LayerNorm(d_model),
         )
@@ -55,8 +58,10 @@ class Integrator(nn.Module):
 
     def forward(self, x):
         # Encoder
-        B, n, state_dim = x.shape        
+        B, n, state_dim = x.shape
+        pos_embed = self.pos_embed(torch.arange(n, device=x.device)).unsqueeze(0)
         x_enc = self.adaptation(x)
+        x_enc = x_enc + pos_embed
         enc_out, attns = self.encoder(x_enc)
 
         # Decoder

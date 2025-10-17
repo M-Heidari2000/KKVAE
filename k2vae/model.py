@@ -10,6 +10,7 @@ from .components import (
     KalmanFilter,
     Integrator,
     Patcher,
+    Scaler,
 )
 
 
@@ -36,11 +37,20 @@ class K2VAE(nn.Module):
         int_activation: str,
         int_num_layers: int,
         kf_init: str,
+        scaler_eps: float,
+        scaler_learnable: bool,
     ):
         super().__init__()
 
         self.state_context_len=obs_context_len // patch_size,
         self.state_forecast_len=obs_forecast_len // patch_size,
+
+        # scaler
+        self.scaler = Scaler(
+            obs_dim=obs_dim,
+            eps=scaler_eps,
+            learnable=scaler_learnable,
+        )
 
         # patcher
         self.patcher = Patcher(
@@ -100,6 +110,8 @@ class K2VAE(nn.Module):
         assert x.shape[1] % self.patcher.patch_size == 0
         assert y.shape[1] % self.patcher.patch_size == 0
 
+        # normalize time series
+        x = self.scaler(x, mode="norm")
         # patching and linear embedding
         xpp = self.patcher(x)
         # encoding
@@ -118,13 +130,13 @@ class K2VAE(nn.Module):
         
         x_rec = rearrange(self.decoder(x_c), "b n (p o) -> b (n p) o")
         y_rec = rearrange(self.decoder(z_sample), "b n (p o) -> b (n p) o")
+        x_rec = self.scaler(x_rec, mode="denorm")
+        y_rec = self.scaler(y_rec, mode="denorm")
 
         # x reconstruction loss
         x_rec_loss = nn.MSELoss()(x_rec, x)
-
         # y reconstruction loss, P(y|z, x) log likelihood
         y_rec_loss = nn.MSELoss()(y_rec, y)
-
         # kl loss
         p_z_mean = torch.zeros_like(q_z.loc)
         B, N, S = q_z.loc.shape
